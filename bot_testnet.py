@@ -1,58 +1,77 @@
 from binance.client import Client
-from binance.enums import *
 from binance.exceptions import BinanceAPIException
+import joblib
+import numpy as np
 import time
 import threading
-import random
-api_key = 'YOUR_KEY'
-api_secret = 'YOUR_SECRET'
-client = Client(api_key, api_secret)
-client.API_URL = 'https://testnet.binance.vision/api'
+import requests
+from keys_testnet import API_KEY, API_SECRET
+#SETTINGS
 symbol = 'BTCUSDT'
-trade_quantity = 0.0005 
-def should_buy():
-    return random.choice([True, False])
-def place_buy_order():
+quantity = 0.0005
+INTERVALO = 5
+#BINANCE
+client = Client(API_KEY, API_SECRET)
+client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
+#AI
+model = joblib.load("model.pkl")
+scaler = joblib.load("scaler.pkl")
+#MARKET
+def get_latest_features():
+    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval=1m&limit=2"
     try:
-        order = client.create_order(
+        data = requests.get(url).json()
+        if len(data) < 2:
+            return None
+        precio_actual = float(data[-1][4])
+        precio_anterior = float(data[-2][4])
+        volumen = float(data[-1][5])
+        cambio_pct = (precio_actual - precio_anterior) / precio_anterior
+        volumen_norm = min(volumen / 100, 1)
+        scaled = scaler.transform([[cambio_pct, volumen_norm]])
+        return scaled, precio_actual
+    except Exception as e:
+        print("Error obteniendo datos de mercado:", e)
+        return None
+#TRADING
+def place_order(side):
+    try:
+        order = client.futures_create_order(
             symbol=symbol,
-            side=SIDE_BUY,
-            type=ORDER_TYPE_MARKET,
-            quantity=trade_quantity
+            side=side,
+            type='MARKET',
+            quantity=quantity
         )
-        print("COMPRA ejecutada:", order['fills'])
+        print(f"{side} ejecutado:", order)
         return True
     except BinanceAPIException as e:
-        print("Error al comprar:", e)
+        print(f"Error en orden {side}:", e)
         return False
-def place_sell_order():
-    try:
-        order = client.create_order(
-            symbol=symbol,
-            side=SIDE_SELL,
-            type=ORDER_TYPE_MARKET,
-            quantity=trade_quantity
-        )
-        print("VENTA ejecutada:", order['fills'])
-        return True
-    except BinanceAPIException as e:
-        print("Error al vender:", e)
-        return False
-def run_scalping():
+#SCALPING LOOP
+def scalping_loop():
     while True:
-        if should_buy():
-            place_buy_order()
+        features_data = get_latest_features()
+        if not features_data:
+            time.sleep(INTERVALO)
+            continue
+        features_scaled, current_price = features_data
+        pred = model.predict(features_scaled)[0]
+        if pred == 1:
+            print(f"[IA] Predicción COMPRA a {current_price} USDT")
+            place_order("BUY")
             time.sleep(2)
-            place_sell_order()
+            place_order("SELL")
         else:
-            place_sell_order()
+            print(f"[IA] Predicción VENTA a {current_price} USDT")
+            place_order("SELL")
             time.sleep(2)
-            place_buy_order()
-        time.sleep(5)
+            place_order("BUY")
+        time.sleep(INTERVALO)
+#Threading
 for i in range(5):
-    t = threading.Thread(target=run_scalping)
-    t.daemon = True
-    t.start()
-print("Scalper iniciado con 5 hilos en Binance Testnet...")
+    hilo = threading.Thread(target=scalping_loop)
+    hilo.daemon = True
+    hilo.start()
+print("Scalping bot iniciado con IA y 5 hilos en Binance Futures Testnet...")
 while True:
     time.sleep(1)
