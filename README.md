@@ -25,9 +25,8 @@
   - `requests`
 
 Install all dependencies:
-
-```bash
 pip install -r requirements.txt
+```bash
 SCALPER-BOT/
 ├── bot_testnet.py            # Main scalping bot using testnet
 ├── monitor.py                # Real-time trade monitor and balance display
@@ -39,7 +38,7 @@ SCALPER-BOT/
 ├── model.pkl                 # Trained model file
 └── requirements.txt
 ```
-Binance Testnet Setup
+## Binance Testnet Setup
 Create an account at: https://testnet.binancefuture.com
 
 Go to "API Management" and generate a new API key.
@@ -59,7 +58,7 @@ Copy
 Edit
 API_KEY = 'your_testnet_api_key'
 API_SECRET = 'your_testnet_secret_key'
-Usage
+## Usage
 1. Download Historical Data
 bash
 Copy
@@ -89,12 +88,12 @@ Edit
 python monitor.py
 This script will display wallet balance, last executed trades, and market price updates.
 
-Notes
+## Notes
 The model is trained on simple features and should be improved for real-world usage.
 
 This bot is configured for Binance Testnet only and will not execute real trades.
 
 The ORDER_TYPE_STOP_MARKET constant must be handled manually depending on the version of the Binance API library; alternatively, use the string "STOP_MARKET" directly.
 
-Disclaimers
+## Disclaimers
 This project is intended for educational and research purposes only. Use at your own risk. The authors are not responsible for any financial losses or misuse of this code in production environments.
