@@ -38,7 +38,7 @@ SCALPER-BOT/
 ├── final_dataset.csv         # Output dataset used for model training
 ├── model.pkl                 # Trained model file
 └── requirements.txt
-
+```
 Binance Testnet Setup
 Create an account at: https://testnet.binancefuture.com
 
