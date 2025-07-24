@@ -5,6 +5,7 @@ import numpy as np
 import time
 import threading
 import requests
+import logging
 from keys_testnet import API_KEY, API_SECRET
 #SETTINGS
 symbol = 'BTCUSDT'
@@ -16,6 +17,11 @@ client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
 #AI
 model = joblib.load("model.pkl")
 scaler = joblib.load("scaler.pkl")
+#LOGGING
+logging.basicConfig(filename='scalper.log', level=logging.INFO, format='%(asctime)s %(message)s')
+def log(msg):
+    print(msg)
+    logging.info(msg)
 #MARKET
 def get_latest_features():
     url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval=1m&limit=2"
@@ -31,7 +37,7 @@ def get_latest_features():
         scaled = scaler.transform([[cambio_pct, volumen_norm]])
         return scaled, precio_actual
     except Exception as e:
-        print("Error obteniendo datos de mercado:", e)
+        log(f"Error obteniendo datos de mercado: {e}")
         return None
 #TRADING
 def place_order(side):
@@ -42,14 +48,21 @@ def place_order(side):
             type='MARKET',
             quantity=quantity
         )
-        print(f"{side} ejecutado:", order)
+        log(f"{side} ejecutado: {order}")
         return True
     except BinanceAPIException as e:
-        print(f"Error en orden {side}:", e)
+        log(f"Error en orden {side}: {e}")
         return False
 #SCALPING LOOP
 def scalping_loop():
     while True:
+        try:
+            with open("control.txt", "r") as f:
+                if f.read().strip() != "1":
+                    time.sleep(1)
+                    continue
+        except:
+            pass
         features_data = get_latest_features()
         if not features_data:
             time.sleep(INTERVALO)
@@ -57,12 +70,12 @@ def scalping_loop():
         features_scaled, current_price = features_data
         pred = model.predict(features_scaled)[0]
         if pred == 1:
-            print(f"[IA] Predicción COMPRA a {current_price} USDT")
+            log(f"[IA] Predicción COMPRA a {current_price} USDT")
             place_order("BUY")
             time.sleep(2)
             place_order("SELL")
         else:
-            print(f"[IA] Predicción VENTA a {current_price} USDT")
+            log(f"[IA] Predicción VENTA a {current_price} USDT")
             place_order("SELL")
             time.sleep(2)
             place_order("BUY")
@@ -72,6 +85,6 @@ for i in range(5):
     hilo = threading.Thread(target=scalping_loop)
     hilo.daemon = True
     hilo.start()
-print("Scalping bot iniciado con IA y 5 hilos en Binance Futures Testnet...")
+log("Scalping bot iniciado con IA y 5 hilos en Binance Futures Testnet...")
 while True:
     time.sleep(1)
